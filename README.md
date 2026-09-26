@@ -17,7 +17,7 @@ Do instalacji na iPhonie opublikuj projekt przez GitHub Pages (instrukcja archit
 
 ## Supabase
 
-Po utworzeniu projektu uruchom `supabase/schema.sql` raz w SQL Editor. Następnie w aplikacji wybierz **Połącz z chmurą**, podaj Project URL i klucz **publishable** (nigdy secret/service-role), po czym zaloguj się linkiem e-mail. W Supabase Auth dodaj aplikacji adresy lokalny i GitHub Pages do listy Redirect URLs. Konfigurację URL/klucza wykonaj osobno na Macu i iPhonie; dane po zalogowaniu synchronizują się przez Supabase.
+Po utworzeniu projektu uruchom `supabase/schema.sql` raz w SQL Editor. Następnie w aplikacji wybierz **Połącz z chmurą** i podaj Project URL oraz klucz **publishable** (nigdy secret/service-role). Zaloguj się linkiem e-mail w Safari. W oknie synchronizacji ustaw hasło; potem możesz używać adresu e-mail i hasła w aplikacji z ekranu głównego. Nie trzeba zmieniać szablonu e-maila ani konfigurować SMTP. Konfigurację URL/klucza wykonaj osobno na Macu i iPhonie; dane po zalogowaniu synchronizują się przez Supabase.
 
 ## Kontrole
 

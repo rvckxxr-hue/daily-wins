@@ -1,7 +1,7 @@
 
 import { CATEGORIES, createEmptyStore, dayStatus, freezeDay, getStats, localDateKey, saveDraft, setGoalDone } from './domain.js';
 import { loadStore, persistStore } from './storage.js';
-import { fetchCloudDays, getCloudClient, getCloudConfig, getCloudSession, saveCloudConfig, saveCloudDay, sendLoginLink, signOutCloud } from './cloud.js';
+import { fetchCloudDays, getCloudClient, getCloudConfig, getCloudSession, saveCloudConfig, saveCloudDay, sendLoginLink, setCloudPassword, signInWithCloudPassword, signOutCloud } from './cloud.js';
 
 const $ = (q, root = document) => root.querySelector(q);
 const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -23,8 +23,8 @@ function cloudDialog() {
   const config=getCloudConfig();
   let content;
   if(!config||state.editCloudConfig) content=`<div class="eyebrow">SUPABASE</div><h2>Połącz z chmurą</h2><p>Adres projektu i klucz publishable znajdziesz w Supabase. Klucz publishable jest przeznaczony do aplikacji przeglądarkowych; dostęp do danych ogranicza logowanie i RLS.</p><form id="cloud-config-form"><label>Project URL<input name="url" type="url" required placeholder="https://….supabase.co" value="${esc(config?.url||'')}" autocomplete="url"></label><label>Publishable key<input name="key" required placeholder="sb_publishable_…" value="${esc(config?.key||'')}" autocomplete="off"></label><button class="button primary" type="submit">Zapisz ustawienia</button></form>`;
-  else if(state.cloudSession) content=`<div class="eyebrow">SUPABASE</div><h2>Synchronizacja</h2><p>Zalogowano jako <strong>${esc(state.cloudSession.user.email||'użytkownik')}</strong>.</p><p class="cloud-status-line">${esc(state.cloudStatus)}</p><div class="cloud-actions"><button class="button secondary" data-action="cloud-sync">Synchronizuj teraz</button><button class="button secondary" data-action="cloud-logout">Wyloguj</button></div>`;
-  else content=`<div class="eyebrow">SUPABASE</div><h2>Zaloguj do Daily Wins</h2><p>Wyślemy jednorazowy link logowania na Twój adres e-mail.</p><form id="cloud-login-form"><label>Adres e-mail<input name="email" type="email" required autocomplete="email" placeholder="ty@example.com"></label><button class="button primary" type="submit">Wyślij link logowania</button></form><button class="text-button" data-action="edit-cloud-config">Zmień konfigurację projektu</button>`;
+  else if(state.cloudSession) content=`<div class="eyebrow">SUPABASE</div><h2>Synchronizacja</h2><p>Zalogowano jako <strong>${esc(state.cloudSession.user.email||'użytkownik')}</strong>.</p><p class="cloud-status-line">${esc(state.cloudStatus)}</p><form id="cloud-password-form"><label>Ustaw hasło do logowania na innych urządzeniach<input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="Co najmniej 8 znaków"></label><label>Powtórz hasło<input name="confirmPassword" type="password" required minlength="8" autocomplete="new-password"></label><button class="button primary" type="submit">Ustaw hasło</button></form><div class="cloud-actions"><button class="button secondary" data-action="cloud-sync">Synchronizuj teraz</button><button class="button secondary" data-action="cloud-logout">Wyloguj</button></div>`;
+  else content=`<div class="eyebrow">SUPABASE</div><h2>Zaloguj do Daily Wins</h2><p>Ustaw hasło w Safari, gdy jesteś zalogowany, a potem użyj go tutaj na iPhonie.</p><form id="cloud-login-form"><label>Adres e-mail<input name="email" type="email" required autocomplete="username" placeholder="ty@example.com"></label><label>Hasło<input name="password" type="password" required autocomplete="current-password"></label><button class="button primary" type="submit">Zaloguj hasłem</button></form><button class="text-button" data-action="magic-link-login">Zamiast tego wyślij link logowania</button><button class="text-button" data-action="edit-cloud-config">Zmień konfigurację projektu</button>`;
   return `<div class="modal-backdrop cloud-backdrop" data-close="true"><section class="modal cloud-modal" role="dialog" aria-modal="true" aria-label="Synchronizacja danych"><button class="close" data-close="true" aria-label="Zamknij">×</button>${content}</section></div>`;
 }
 function goalRow(goal, date, frozen) { return `<div class="goal ${goal.done?'is-done':''}"><span class="category-dot ${goal.category}"></span><span class="goal-text">${esc(goal.text)}</span><span class="pill ${goal.category}">${goal.category}</span>${frozen?`<label class="check"><input type="checkbox" data-done="${esc(goal.id)}" data-date="${date}" ${goal.done?'checked':''} aria-label="Oznacz ${esc(goal.text)} jako wykonany"><span></span></label>`:''}</div>`; }
@@ -95,6 +95,7 @@ document.addEventListener('click', e=>{
   if(e.target.closest('[data-action="edit-cloud-config"]')){state.editCloudConfig=true;render();return;}
   if(e.target.closest('[data-action="cloud-sync"]')){syncCloud().catch(error=>{state.notice=error.message;render();});return;}
   if(e.target.closest('[data-action="cloud-logout"]')){signOutCloud().then(()=>{state.cloudSession=null;state.cloudStatus='Zaloguj do chmury';state.cloudModal=false;render();}).catch(error=>{state.notice=error.message;render();});return;}
+  if(e.target.closest('[data-action="magic-link-login"]')){const email=$('#cloud-login-form')?.elements.email.value.trim();if(!email){state.notice='Najpierw wpisz adres e-mail.';render();return;}sendLoginLink(email,`${location.origin}${location.pathname}`).then(()=>{state.notice='Link logowania wysłany. Otwórz go w tej samej przeglądarce.';render();}).catch(error=>{state.notice=`Nie udało się wysłać linku: ${error.message}`;render();});return;}
   if(e.target.closest('[data-action="save-draft"]')){const rows=[...$('#plan-form').querySelectorAll('.form-row')];const goals=rows.map(r=>({text:r.querySelector('[name=text]').value,category:r.querySelector('[name=category]').value}));update(store=>saveDraft(store,state.planDate,goals));return;}
   const month=e.target.closest('[data-month]');if(month){state.month.setMonth(state.month.getMonth()+Number(month.dataset.month));render();return;}
   const hist=e.target.closest('[data-history-date]');if(hist){state.selectedDate=hist.dataset.historyDate;render();return;}
@@ -116,8 +117,14 @@ document.addEventListener('submit',async e=>{
     catch(error){state.notice=error.message;render();}return;
   }
   if(e.target.id==='cloud-login-form'){
-    e.preventDefault();try{await sendLoginLink(e.target.elements.email.value,`${location.origin}${location.pathname}`);state.notice='Link logowania wysłany. Otwórz go na tym urządzeniu. Po zalogowaniu aplikacja zapamięta Cię na tym urządzeniu.';render();}
-    catch(error){const message=String(error.message||error);state.notice=/rate limit|too many requests/i.test(message)?'Supabase chwilowo ogranicza liczbę e-maili. Nie ponawiaj teraz wielu prób; poczekaj, a potem wyślij jeden link.':`Nie udało się wysłać linku: ${message}`;render();}
+    e.preventDefault();try{await signInWithCloudPassword(e.target.elements.email.value.trim(),e.target.elements.password.value);state.cloudModal=false;state.notice='Zalogowano. Łączę z chmurą…';render();await initializeCloud();}
+    catch(error){state.notice=`Nie udało się zalogować: ${error.message}`;render();}
+    return;
+  }
+  if(e.target.id==='cloud-password-form'){
+    e.preventDefault();const password=e.target.elements.password.value;if(password!==e.target.elements.confirmPassword.value){state.notice='Hasła nie są takie same.';render();return;}
+    try{await setCloudPassword(password);state.notice='Hasło ustawione. Teraz możesz zalogować się nim w aplikacji z ikony.';render();}
+    catch(error){state.notice=`Nie udało się ustawić hasła: ${error.message}`;render();}
   }
 });
 window.addEventListener('focus',()=>{if(state.cloudSession)syncCloud().catch(()=>{});});

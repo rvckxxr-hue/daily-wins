@@ -29,6 +29,20 @@ export async function sendLoginLink(email, redirectTo) {
   if (error) throw error;
 }
 
+export async function setCloudPassword(password) {
+  const client = await getCloudClient();
+  if (!client) throw new Error('Najpierw zapisz ustawienia Supabase.');
+  const { error } = await client.auth.updateUser({ password });
+  if (error) throw error;
+}
+
+export async function signInWithCloudPassword(email, password) {
+  const client = await getCloudClient();
+  if (!client) throw new Error('Najpierw zapisz ustawienia Supabase.');
+  const { error } = await client.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+}
+
 export async function getCloudSession() {
   const client = await getCloudClient();
   if (!client) return null;
