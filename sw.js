@@ -1,4 +1,4 @@
-const CACHE = 'daily-wins-shell-v1';
+const CACHE = 'daily-wins-shell-v2';
 const SHELL = ['./', './index.html', './styles.css', './src/app.js', './src/domain.js', './src/storage.js', './src/cloud.js', './manifest.webmanifest', './assets/icon.svg'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('daily-wins-shell-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
