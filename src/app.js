@@ -1,3 +1,4 @@
+
 import { CATEGORIES, createEmptyStore, dayStatus, freezeDay, getStats, localDateKey, saveDraft, setGoalDone } from './domain.js';
 import { loadStore, persistStore } from './storage.js';
 import { fetchCloudDays, getCloudClient, getCloudConfig, getCloudSession, saveCloudConfig, saveCloudDay, sendLoginLink, signOutCloud } from './cloud.js';
@@ -88,7 +89,7 @@ document.addEventListener('click', e=>{
   const month=e.target.closest('[data-month]');if(month){state.month.setMonth(state.month.getMonth()+Number(month.dataset.month));render();return;}
   const hist=e.target.closest('[data-history-date]');if(hist){state.selectedDate=hist.dataset.historyDate;render();return;}
   const planDate=e.target.closest('[data-planning-date]');if(planDate){state.planDate=planDate.dataset.planningDate;render();return;}
-  if(e.target.closest('[data-close="true"]')){state.selectedDate=null;state.cloudModal=false;state.editCloudConfig=false;render();}
+  if(e.target.closest('.close[data-close="true"]') || e.target.matches('.modal-backdrop[data-close="true"]')){state.selectedDate=null;state.cloudModal=false;state.editCloudConfig=false;render();}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(state.cloudModal||state.selectedDate)){state.cloudModal=false;state.editCloudConfig=false;state.selectedDate=null;render();}});
 document.addEventListener('change',e=>{
