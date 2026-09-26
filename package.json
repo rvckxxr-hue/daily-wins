@@ -1,0 +1,1 @@
+{"name":"daily-wins-pwa","version":"1.0.0","private":true,"type":"module","scripts":{"test":"node --test","check":"node --check src/domain.js && node --check src/storage.js && node --check src/app.js"}}
