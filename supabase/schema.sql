@@ -6,6 +6,7 @@ create table if not exists public.daily_days (
   day_date date not null,
   goals jsonb not null default '[]'::jsonb,
   frozen_at timestamptz,
+  manually_won boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   primary key (user_id, day_date),
@@ -15,6 +16,8 @@ create table if not exists public.daily_days (
     and (frozen_at is null or jsonb_array_length(goals) = 5)
   )
 );
+
+alter table public.daily_days add column if not exists manually_won boolean not null default false;
 
 alter table public.daily_days enable row level security;
 
@@ -50,11 +53,11 @@ begin
   end if;
   goal_count := jsonb_array_length(new.goals);
 
-  if new.frozen_at is null and goal_count > 4 then
-    raise exception 'An open draft can contain at most four goals';
-  end if;
   if new.frozen_at is not null and goal_count <> 5 then
     raise exception 'A frozen day must contain exactly five goals';
+  end if;
+  if new.manually_won and new.frozen_at is null then
+    raise exception 'Only a planned day can be marked manually won';
   end if;
 
   for goal_index in 0..(goal_count - 1) loop
@@ -85,17 +88,23 @@ begin
     if new.user_id is distinct from old.user_id or new.day_date is distinct from old.day_date then
       raise exception 'A day owner and date are immutable';
     end if;
+    if old.manually_won and not new.manually_won then
+      raise exception 'A manual win cannot be undone';
+    end if;
     if old.frozen_at is not null then
-      if new.frozen_at is distinct from old.frozen_at then
+      if new.frozen_at is distinct from old.frozen_at
+         and not (old.day_date > current_date and new.frozen_at is null) then
         raise exception 'A frozen day cannot be unfrozen';
       end if;
-      for goal_index in 0..4 loop
-        if new.goals -> goal_index ->> 'id' is distinct from old.goals -> goal_index ->> 'id'
-           or new.goals -> goal_index ->> 'text' is distinct from old.goals -> goal_index ->> 'text'
-           or new.goals -> goal_index ->> 'category' is distinct from old.goals -> goal_index ->> 'category' then
-          raise exception 'Frozen goal definitions are immutable';
-        end if;
-      end loop;
+      if not (old.day_date > current_date and new.frozen_at is null) then
+        for goal_index in 0..4 loop
+          if new.goals -> goal_index ->> 'id' is distinct from old.goals -> goal_index ->> 'id'
+             or new.goals -> goal_index ->> 'text' is distinct from old.goals -> goal_index ->> 'text'
+             or new.goals -> goal_index ->> 'category' is distinct from old.goals -> goal_index ->> 'category' then
+            raise exception 'Frozen goal definitions are immutable';
+          end if;
+        end loop;
+      end if;
     end if;
   end if;
 

@@ -35,15 +35,43 @@ export function freezeDay(store, date, goals, now = new Date()) {
   return { ...store, days: { ...store.days, [date]: { date, frozenAt: now.toISOString(), goals: frozen } } };
 }
 
-export function saveDraft(store, date, goals) {
-  if (!parseDateKey(date)) throw new Error('Nieprawidłowa data.');
-  if (store.days[date]?.frozenAt) throw new Error('Zamrożonego dnia nie można edytować.');
-  if (!Array.isArray(goals) || goals.length > 4) throw new Error('Otwarty szkic może mieć maksymalnie 4 cele.');
-  const draft = goals.map((g, i) => ({ id: g.id || `${date}-draft-${i}`, text: String(g.text || '').trim(), category: CATEGORIES.includes(g.category) ? g.category : 'Zdrowie', done: false })).filter(g => g.text);
-  const days = { ...store.days };
-  if (draft.length) days[date] = { date, frozenAt: null, goals: draft };
-  else delete days[date];
-  return { ...store, days };
+export function tomorrowDateKey(today = localDateKey()) {
+  const date = parseDateKey(today);
+  if (!date) throw new Error('Nieprawidłowa data.');
+  date.setDate(date.getDate() + 1);
+  return localDateKey(date);
+}
+
+export function canPlanDate(date, today = localDateKey()) {
+  return date === today || date === tomorrowDateKey(today);
+}
+
+export function saveTomorrowPlan(store, date, goals, today = localDateKey()) {
+  if (date !== tomorrowDateKey(today)) throw new Error('Możesz zapisać plan tylko na jutro.');
+  const error = validateGoals(goals);
+  if (error) throw new Error(error);
+  const previous = store.days[date];
+  const scheduled = goals.map((goal, index) => ({
+    id: previous?.goals?.[index]?.id || goal.id || `${date}-${index + 1}`,
+    text: String(goal.text).trim(),
+    category: goal.category,
+    done: Boolean(previous?.goals?.[index]?.done)
+  }));
+  return { ...store, days: { ...store.days, [date]: { ...previous, date, frozenAt: null, goals: scheduled, manuallyWon: false } } };
+}
+
+export function activateScheduledDay(store, date, now = new Date()) {
+  const scheduled = store.days[date];
+  if (!scheduled || scheduled.frozenAt || scheduled.goals?.length !== 5) return store;
+  return { ...store, days: { ...store.days, [date]: { ...scheduled, frozenAt: now.toISOString() } } };
+}
+
+export function markDayManuallyWon(store, date, today = localDateKey()) {
+  const record = store.days[date];
+  if (!parseDateKey(date) || date >= today) throw new Error('Możesz ręcznie wygrać tylko zakończony dzień.');
+  if (!record?.frozenAt) throw new Error('Dzień musi mieć zapisany plan.');
+  if (record.manuallyWon || record.goals.filter(goal => goal.done).length === 5) throw new Error('Ten dzień jest już wygrany.');
+  return { ...store, days: { ...store.days, [date]: { ...record, manuallyWon: true } } };
 }
 
 export function setGoalDone(store, date, goalId, done) {
@@ -56,6 +84,7 @@ export function setGoalDone(store, date, goalId, done) {
 export function dayStatus(day, date, today = localDateKey()) {
   if (!day) return 'unset';
   if (!day.frozenAt) return 'unset';
+  if (day.manuallyWon && date < today) return 'won';
   const count = day.goals.filter(g => g.done).length;
   if (count === 5) return 'won';
   return date < today ? 'lost' : 'active';

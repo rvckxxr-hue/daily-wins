@@ -20,8 +20,8 @@ function normalizeDay(raw, date) {
   goals = goals.map((goal, index) => normalizeGoal(goal, index, date)).filter(Boolean).slice(0, 5);
   if (!goals.length) return null;
   const frozenFlag = raw.frozenAt || raw.frozen || raw.isFrozen || goals.length === 5;
-  if (frozenFlag && goals.length === 5) return { date, frozenAt: typeof raw.frozenAt === 'string' ? raw.frozenAt : new Date().toISOString(), goals };
-  return { date, frozenAt: null, goals: goals.slice(0, 4) };
+  if (frozenFlag && goals.length === 5) return { date, frozenAt: typeof raw.frozenAt === 'string' ? raw.frozenAt : new Date().toISOString(), goals, manuallyWon: Boolean(raw.manuallyWon) };
+  return { date, frozenAt: null, goals: goals.slice(0, 4), manuallyWon: Boolean(raw.manuallyWon) };
 }
 
 export function migrateLegacy(raw, now = new Date()) {

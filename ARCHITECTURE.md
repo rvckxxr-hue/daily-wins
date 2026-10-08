@@ -6,9 +6,9 @@ Static PWA hosted on GitHub Pages. `src/domain.js` owns date, status, freezing, 
 
 ## Data model
 
-`{ schemaVersion: 2, days: { [YYYY-MM-DD]: { date, frozenAt, goals: [{ id, text, category, done }] } } }`
+`{ schemaVersion: 2, days: { [YYYY-MM-DD]: { date, frozenAt, manuallyWon, goals: [{ id, text, category, done }] } } }`
 
-An open draft may contain zero through four goals and remains editable. Freeze accepts exactly five valid goals and records a timestamp. Once frozen, goal identity, text, order, and category are immutable; only `done` can change. A day is won at 5/5; a frozen past day below 5/5 is lost; a current day below 5/5 is in progress. A missing or partial day is unset, regardless of date. Dates are local calendar dates, with ISO date keys (not UTC timestamps), to avoid timezone rollover bugs.
+Planning is limited to today and tomorrow. Today's plan freezes when saved; tomorrow's five-goal plan stays editable until the date begins, when it is activated and frozen. Existing partial records remain stored and are shown in history; the application no longer creates or edits partial plans. Once a day begins, goal identity, text, order, and category are immutable; only completion changes. A day is won at 5/5 or when a completed past day is manually marked won. Manual correction changes only `manuallyWon`; it never edits goal completion. A frozen past day below 5/5 is otherwise lost; a current day below 5/5 is in progress. A missing or partial day is unset, regardless of date. Dates are local calendar dates, with ISO date keys (not UTC timestamps), to avoid timezone rollover bugs.
 
 ## Persistence and migration
 
@@ -16,7 +16,7 @@ The stable key is `dailyWins`; schema upgrades never clear it. On first load, th
 
 ## Supabase sync
 
-`supabase/schema.sql` creates `daily_days`, enables RLS, and installs a trigger that validates goal rows and prevents edits to a frozen goal definition. The browser uses Supabase Auth magic links. The browser only uses the publishable key; never ship a secret/service-role key. On first authenticated sync, local days missing in the cloud are uploaded; cloud rows win same-date conflicts, while a local pre-sync backup is preserved. Changed days are upserted, and the app refreshes from the cloud when it regains focus. Concurrent edits to the same completion state are last-write-wins; never change frozen definitions. For stricter atomic checkbox concurrency, add a narrowly scoped RPC before multi-user use.
+`supabase/schema.sql` creates `daily_days`, enables RLS, and installs a trigger that validates goal rows, protects frozen goal definitions, and stores the manual-win flag in an additive column. Re-run this SQL file on an existing project to add the column without deleting rows. The browser supports Supabase Auth magic links and passwords. The browser only uses the publishable key; never ship a secret/service-role key. On first authenticated sync, local days missing in the cloud are uploaded; cloud rows win same-date conflicts, while a local pre-sync backup is preserved. Changed days are upserted, and the app refreshes from the cloud when it regains focus. Concurrent edits to the same completion state are last-write-wins; never change frozen definitions. For stricter atomic checkbox concurrency, add a narrowly scoped RPC before multi-user use.
 
 ## Hosting and security
 

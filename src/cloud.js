@@ -60,13 +60,13 @@ export async function signOutCloud() {
 
 export async function fetchCloudDays() {
   const client = await getCloudClient();
-  const { data, error } = await client.from('daily_days').select('day_date, goals, frozen_at').order('day_date');
+  const { data, error } = await client.from('daily_days').select('day_date, goals, frozen_at, manually_won').order('day_date');
   if (error) throw error;
-  return Object.fromEntries(data.map(row => [row.day_date, { date: row.day_date, goals: row.goals, frozenAt: row.frozen_at }]));
+  return Object.fromEntries(data.map(row => [row.day_date, { date: row.day_date, goals: row.goals, frozenAt: row.frozen_at, manuallyWon: Boolean(row.manually_won) }]));
 }
 
 export async function saveCloudDay(day, userId) {
   const client = await getCloudClient();
-  const { error } = await client.from('daily_days').upsert({ user_id: userId, day_date: day.date, goals: day.goals, frozen_at: day.frozenAt }, { onConflict: 'user_id,day_date' });
+  const { error } = await client.from('daily_days').upsert({ user_id: userId, day_date: day.date, goals: day.goals, frozen_at: day.frozenAt, manually_won: Boolean(day.manuallyWon) }, { onConflict: 'user_id,day_date' });
   if (error) throw error;
 }
