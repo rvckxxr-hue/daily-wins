@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createEmptyStore, freezeDay, saveTomorrowPlan, activateScheduledDay, setGoalDone, dayStatus, getStats, localDateKey, markDayManuallyWon, canPlanDate, tomorrowDateKey } from '../src/domain.js';
+import { createEmptyStore, freezeDay, saveTomorrowPlan, activateScheduledDay, setGoalDone, dayStatus, getStats, getCategoryStats, WEEK_WIN_TARGET, MONTH_WIN_TARGET, localDateKey, markDayManuallyWon, canPlanDate, tomorrowDateKey } from '../src/domain.js';
 import { loadStore, migrateLegacy, persistStore, STORAGE_KEY } from '../src/storage.js';
 
 const goals = Array.from({length:5},(_,i)=>({text:`Cel ${i+1}`,category:['Zdrowie','Konto','Duch'][i%3]}));
@@ -87,6 +87,29 @@ test('weekly, monthly wins and streak metrics count only frozen wins',()=>{
   assert.equal(stats.monthWins,3);
   assert.equal(stats.streak,1);
   assert.equal(localDateKey(new Date(2026,8,26,23,59)),'2026-09-26');
+});
+
+test('weekly and monthly win targets remain 6 and 26',()=>{
+  assert.equal(WEEK_WIN_TARGET,6);
+  assert.equal(MONTH_WIN_TARGET,26);
+  let store=createEmptyStore();
+  for(const date of ['2026-09-21','2026-09-22','2026-09-23','2026-09-24','2026-09-25','2026-09-26']) store=freezeDay(store,date,goals.map(g=>({...g,done:true})));
+  assert.equal(getStats(store,'2026-09-26').weekWins,WEEK_WIN_TARGET);
+});
+
+test('category statistics count completed goals and round percentages across saved records',()=>{
+  const stats=getCategoryStats({days:{
+    '2026-09-24':{goals:[{category:'Zdrowie',done:true},{category:'Zdrowie',done:false},{category:'Konto',done:true}]},
+    '2026-09-25':{goals:[{category:'Zdrowie',done:true},{category:'Konto',done:false},{category:'Duch',done:true}]},
+    '2026-09-26':{goals:[{category:'Zdrowie',done:false}]}
+  }});
+  assert.deepEqual(stats.Zdrowie,{done:2,total:4,percent:50});
+  assert.deepEqual(stats.Konto,{done:1,total:2,percent:50});
+  assert.deepEqual(stats.Duch,{done:1,total:1,percent:100});
+});
+
+test('category statistics safely report zero when no goals exist',()=>{
+  assert.deepEqual(getCategoryStats(createEmptyStore()).Duch,{done:0,total:0,percent:0});
 });
 
 test('legacy import retains source, makes recoverable backup, and leaves partial days open',()=>{

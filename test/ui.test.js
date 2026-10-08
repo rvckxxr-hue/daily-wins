@@ -35,6 +35,18 @@ test('statistics use equal desktop columns and one full-width mobile column', ()
   assert.match(css, /\.stat-card\.dark,\.stat-card\.month-card\{grid-column:auto\}/);
 });
 
+test('today and statistics show weekly, monthly, category progress and lost days', async () => {
+  const domain = await readFile(new URL('../src/domain.js', import.meta.url), 'utf8');
+  assert.match(app, /function todayMetrics\(\)/);
+  assert.match(app, /Cel 6\/7 osiągnięty/);
+  assert.match(app, /TEN MIESIĄC · \$\{monthDays\} DNI/);
+  assert.match(app, /getCategoryStats\(state\.store\)/);
+  assert.match(app, /\$\{stat\.done\} z \$\{stat\.total\} celów wykonanych/);
+  assert.match(domain, /WEEK_WIN_TARGET = 6/);
+  assert.match(domain, /MONTH_WIN_TARGET = 26/);
+  assert.match(css, /\.mini-bars i\.lost\{background:#cc5b55\}/);
+});
+
 test('manual win action is only rendered for completed past losses and requires confirmation', () => {
   assert.match(app, /d\?\.frozenAt&&state\.selectedDate<localDateKey\(\)&&selectedStatus==='lost'/);
   assert.match(app, /window\.confirm\('Czy na pewno chcesz oznaczyć ten dzień jako wygrany\?'/);

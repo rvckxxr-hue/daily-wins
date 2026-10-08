@@ -1,4 +1,6 @@
 export const CATEGORIES = ['Zdrowie', 'Konto', 'Duch'];
+export const WEEK_WIN_TARGET = 6;
+export const MONTH_WIN_TARGET = 26;
 export const STORE_VERSION = 2;
 
 export function localDateKey(date = new Date()) {
@@ -102,4 +104,20 @@ export function getStats(store, today = localDateKey()) {
   if (!win(localDateKey(cursor))) cursor.setDate(cursor.getDate() - 1);
   while (win(localDateKey(cursor))) { streak++; cursor.setDate(cursor.getDate() - 1); }
   return { streak, weekWins: weekKeys.filter(win).length, monthWins, weekKeys };
+}
+
+export function getCategoryStats(store) {
+  const stats = Object.fromEntries(CATEGORIES.map(category => [category, { done: 0, total: 0, percent: 0 }]));
+  for (const record of Object.values(store.days)) {
+    for (const goal of record?.goals || []) {
+      const category = goal && stats[goal.category];
+      if (!category) continue;
+      category.total++;
+      if (goal.done) category.done++;
+    }
+  }
+  for (const category of Object.values(stats)) {
+    category.percent = category.total ? Math.round(category.done / category.total * 100) : 0;
+  }
+  return stats;
 }
