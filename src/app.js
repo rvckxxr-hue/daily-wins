@@ -113,7 +113,7 @@ document.addEventListener('click', e=>{
   const manualWin=e.target.closest('[data-action="manual-win"]');if(manualWin){const date=manualWin.dataset.date;if(date<localDateKey()&&window.confirm('Czy na pewno chcesz oznaczyć ten dzień jako wygrany?'))update(store=>markDayManuallyWon(store,date));return;}
   const month=e.target.closest('[data-month]');if(month){state.month.setMonth(state.month.getMonth()+Number(month.dataset.month));render();return;}
   const hist=e.target.closest('[data-history-date]');if(hist){state.selectedDate=hist.dataset.historyDate;render();return;}
-  const planDate=e.target.closest('[data-plan-date]');if(planDate&&canPlanDate(planDate.dataset.planDate)){state.planDate=planDate.dataset.planDate;render();return;}
+  const planDate=e.target.closest('.plan-day-tab[data-plan-date]');if(planDate&&canPlanDate(planDate.dataset.planDate)){state.planDate=planDate.dataset.planDate;render();return;}
   if(e.target.closest('.close[data-close="true"]') || e.target.matches('.modal-backdrop[data-close="true"]')){state.selectedDate=null;state.cloudModal=false;state.editCloudConfig=false;render();}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(state.cloudModal||state.selectedDate)){state.cloudModal=false;state.editCloudConfig=false;state.selectedDate=null;render();}});

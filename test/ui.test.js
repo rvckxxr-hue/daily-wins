@@ -12,6 +12,11 @@ test('planning presents only today and tomorrow and guards submitted dates', () 
   assert.doesNotMatch(app, /data-planning-date|type="date"|plan-date-from-history/);
 });
 
+test('only day tabs handle plan-date clicks; goal fields do not trigger a view render', () => {
+  assert.match(app, /e\.target\.closest\('\.plan-day-tab\[data-plan-date\]'\)/);
+  assert.match(app, /<form id="plan-form" data-plan-date="\$\{date\}">/);
+});
+
 test('draft saving and draft-specific interface are removed while saved data stays in storage', async () => {
   assert.doesNotMatch(app, /saveDraft|save-draft|Zapisz szkic|szkic/i);
   assert.doesNotMatch(await readFile(new URL('../src/domain.js', import.meta.url), 'utf8'), /saveDraft/);
