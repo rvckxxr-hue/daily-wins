@@ -52,6 +52,29 @@ test('today and statistics show weekly, monthly, category progress and lost days
   assert.match(css, /\.mini-bars i\.lost\{background:#cc5b55\}/);
 });
 
+test('package 2 presents streak record, remaining goals, freeze quote and structured statistics', async () => {
+  const domain = await readFile(new URL('../src/domain.js', import.meta.url), 'utf8');
+  assert.match(domain, /recordStreak: getRecordStreak/);
+  assert.match(domain, /export function getOverallStats/);
+  assert.match(app, /🔥 \$\{stats\.streak\} .*Rekord: \$\{stats\.recordStreak\}/);
+  assert.match(app, /Jeszcze \$\{remainingGoals\} \$\{remainingLabel\} → WYGRANA/);
+  assert.match(app, /DZIEŃ WYGRANY/);
+  assert.match(app, /Masz jeszcze czas\./);
+  assert.match(app, /Nie zmieniaj celu — zmieniaj swoją decyzję\./);
+  assert.match(app, /TWOJE WYNIKI/);
+  assert.match(app, /WYKONANIE CELÓW/);
+  assert.match(app, /OSTATNIE 30 DNI/);
+  assert.match(app, /Bez zapisu/);
+  assert.match(app, /\$\{all\.wins\} z \$\{all\.totalDays\} dni/);
+  assert.match(app, /\$\{stat\.done\} z \$\{stat\.total\} celów/);
+});
+
+test('mobile plan text remains 16px and recent days have a compact responsive grid', () => {
+  assert.match(css, /@media\(max-width:650px\)\{\.form-row input\{font-size:16px\}/);
+  assert.match(css, /\.recent-grid\{display:grid;grid-template-columns:repeat\(10,minmax\(0,1fr\)\)/);
+  assert.match(css, /\.recent-grid\{grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/);
+});
+
 test('manual win action is only rendered for completed past losses and requires confirmation', () => {
   assert.match(app, /d\?\.frozenAt&&state\.selectedDate<localDateKey\(\)&&selectedStatus==='lost'/);
   assert.match(app, /window\.confirm\('Czy na pewno chcesz oznaczyć ten dzień jako wygrany\?'/);

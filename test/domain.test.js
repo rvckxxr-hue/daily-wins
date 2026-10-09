@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createEmptyStore, freezeDay, saveTomorrowPlan, activateScheduledDay, setGoalDone, dayStatus, getStats, getCategoryStats, WEEK_WIN_TARGET, MONTH_WIN_TARGET, localDateKey, markDayManuallyWon, canPlanDate, tomorrowDateKey } from '../src/domain.js';
+import { createEmptyStore, freezeDay, saveTomorrowPlan, activateScheduledDay, setGoalDone, dayStatus, getStats, getCategoryStats, getOverallStats, getRecordStreak, WEEK_WIN_TARGET, MONTH_WIN_TARGET, localDateKey, markDayManuallyWon, canPlanDate, tomorrowDateKey } from '../src/domain.js';
 import { loadStore, migrateLegacy, persistStore, STORAGE_KEY } from '../src/storage.js';
 
 const goals = Array.from({length:5},(_,i)=>({text:`Cel ${i+1}`,category:['Zdrowie','Konto','Duch'][i%3]}));
@@ -97,6 +97,15 @@ test('weekly and monthly win targets remain 6 and 26',()=>{
   assert.equal(getStats(store,'2026-09-26').weekWins,WEEK_WIN_TARGET);
 });
 
+test('26 wins meet the monthly target within a 30-day month',()=>{
+  let store=createEmptyStore();
+  for(let day=1;day<=26;day++){
+    const date=`2026-09-${String(day).padStart(2,'0')}`;
+    store=freezeDay(store,date,goals.map(g=>({...g,done:true})));
+  }
+  assert.equal(getStats(store,'2026-09-30').monthWins,MONTH_WIN_TARGET);
+});
+
 test('category statistics count completed goals and round percentages across saved records',()=>{
   const stats=getCategoryStats({days:{
     '2026-09-24':{goals:[{category:'Zdrowie',done:true},{category:'Zdrowie',done:false},{category:'Konto',done:true}]},
@@ -110,6 +119,53 @@ test('category statistics count completed goals and round percentages across sav
 
 test('category statistics safely report zero when no goals exist',()=>{
   assert.deepEqual(getCategoryStats(createEmptyStore()).Duch,{done:0,total:0,percent:0});
+});
+
+test('current and record streaks count consecutive wins, break on missing/lost days, and update when a record is beaten',()=>{
+  let store=createEmptyStore();
+  assert.equal(getStats(store,'2026-09-26').streak,0);
+  assert.equal(getRecordStreak(store,'2026-09-26'),0);
+  let gapStore=freezeDay(createEmptyStore(),'2026-09-20',goals.map(g=>({...g,done:true})));
+  gapStore=freezeDay(gapStore,'2026-09-22',goals.map(g=>({...g,done:true})));
+  assert.equal(getRecordStreak(gapStore,'2026-09-22'),1);
+  for(const date of ['2026-09-20','2026-09-21','2026-09-22','2026-09-24']) store=freezeDay(store,date,goals.map(g=>({...g,done:true})));
+  store=freezeDay(store,'2026-09-23',goals);
+  assert.equal(getRecordStreak(store,'2026-09-26'),3);
+  assert.equal(getStats(store,'2026-09-26').streak,0);
+  store=freezeDay(store,'2026-09-25',goals.map(g=>({...g,done:true})));
+  store=freezeDay(store,'2026-09-26',goals.map(g=>({...g,done:true})));
+  assert.equal(getRecordStreak(store,'2026-09-26'),3);
+  assert.equal(getStats(store,'2026-09-26').streak,3);
+  store=freezeDay(store,'2026-09-27',goals.map(g=>({...g,done:true})));
+  store=freezeDay(store,'2026-09-28',goals.map(g=>({...g,done:true})));
+  assert.equal(getRecordStreak(store,'2026-09-28'),5);
+});
+
+test('overall statistics count saved history, exclude future days, round percentages, and preserve missing recent dates',()=>{
+  let store=createEmptyStore();
+  store=freezeDay(store,'2026-09-24',goals.map(g=>({...g,done:true})));
+  store=freezeDay(store,'2026-09-25',goals);
+  store=saveTomorrowPlan(store,'2026-09-27',goals,'2026-09-26');
+  const stats=getOverallStats(store,'2026-09-26');
+  assert.equal(stats.wins,1);
+  assert.equal(stats.totalDays,2);
+  assert.equal(stats.winPercent,50);
+  assert.equal(stats.goalDone,5);
+  assert.equal(stats.goalTotal,15);
+  assert.equal(stats.goalPercent,33);
+  assert.equal(stats.recentDays.length,30);
+  assert.deepEqual(stats.recentDays.slice(-3).map(d=>d.status),['won','lost','unset']);
+  assert.equal(stats.recentDays.at(-1).date,'2026-09-26');
+});
+
+test('last 30 days uses calendar boundaries and empty store has neutral zero stats',()=>{
+  const empty=getOverallStats(createEmptyStore(),'2026-03-01');
+  assert.equal(empty.winPercent,0);
+  assert.equal(empty.goalPercent,0);
+  assert.equal(empty.totalDays,0);
+  assert.equal(empty.recentDays[0].date,'2026-01-31');
+  assert.equal(empty.recentDays.at(-1).date,'2026-03-01');
+  assert.ok(empty.recentDays.every(d=>d.status==='unset'));
 });
 
 test('legacy import retains source, makes recoverable backup, and leaves partial days open',()=>{

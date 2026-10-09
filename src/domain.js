@@ -103,7 +103,39 @@ export function getStats(store, today = localDateKey()) {
   const cursor = new Date(todayDate);
   if (!win(localDateKey(cursor))) cursor.setDate(cursor.getDate() - 1);
   while (win(localDateKey(cursor))) { streak++; cursor.setDate(cursor.getDate() - 1); }
-  return { streak, weekWins: weekKeys.filter(win).length, monthWins, weekKeys };
+  return { streak, recordStreak: getRecordStreak(store, today), weekWins: weekKeys.filter(win).length, monthWins, todayStatus: dayStatus(store.days[today], today, today), weekKeys };
+}
+
+export function getRecordStreak(store, today = localDateKey()) {
+  const dates = Object.keys(store.days).filter(date => parseDateKey(date) && date <= today).sort();
+  let current = 0, record = 0, previous = null;
+  for (const date of dates) {
+    if (dayStatus(store.days[date], date, today) !== 'won') { current = 0; previous = date; continue; }
+    const expected = previous ? tomorrowDateKey(previous) : null;
+    current = expected === date ? current + 1 : 1;
+    record = Math.max(record, current);
+    previous = date;
+  }
+  return record;
+}
+
+export function getOverallStats(store, today = localDateKey()) {
+  const dates = Object.keys(store.days).filter(date => parseDateKey(date) && date <= today);
+  const wins = dates.filter(date => dayStatus(store.days[date], date, today) === 'won').length;
+  const categories = getCategoryStats(store);
+  const goalDone = Object.values(categories).reduce((sum, stat) => sum + stat.done, 0);
+  const goalTotal = Object.values(categories).reduce((sum, stat) => sum + stat.total, 0);
+  const recentDays = Array.from({ length: 30 }, (_, index) => {
+    const date = parseDateKey(today);
+    date.setDate(date.getDate() - (29 - index));
+    const key = localDateKey(date);
+    return { date: key, status: dayStatus(store.days[key], key, today) };
+  });
+  return {
+    wins, totalDays: dates.length, winPercent: dates.length ? Math.round(wins / dates.length * 100) : 0,
+    goalDone, goalTotal, goalPercent: goalTotal ? Math.round(goalDone / goalTotal * 100) : 0,
+    recentDays
+  };
 }
 
 export function getCategoryStats(store) {
